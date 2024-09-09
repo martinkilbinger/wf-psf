@@ -3,10 +3,11 @@ import tensorflow as tf
 import tensorflow_addons as tfa
 import PIL
 import zernike as zk
+
 try:
     from cv2 import resize, INTER_AREA
 except:
-    print('Problem importing opencv..')
+    print("Problem importing opencv..")
 import sys
 
 
@@ -19,21 +20,30 @@ def scale_to_range(input_array, old_range, new_range):
 
 
 def calc_wfe(zernike_basis, zks):
-    wfe = np.einsum('ijk,ijk->jk', zernike_basis, zks.reshape(-1, 1, 1))
+    wfe = np.einsum("ijk,ijk->jk", zernike_basis, zks.reshape(-1, 1, 1))
     return wfe
 
 
 def calc_wfe_rms(zernike_basis, zks, pupil_mask):
     wfe = calc_wfe(zernike_basis, zks)
-    wfe_rms = np.sqrt(np.mean((wfe[pupil_mask] - np.mean(wfe[pupil_mask]))**2))
+    wfe_rms = np.sqrt(np.mean((wfe[pupil_mask] - np.mean(wfe[pupil_mask])) ** 2))
     return wfe_rms
 
 
 def generate_SED_elems(SED, sim_psf_toolkit, n_bins=20):
-    r"""Generate the SED elements needed for using the TF_poly_PSF.
+    """Generate SED Elements.
 
-    sim_psf_toolkit: An instance of the SimPSFToolkit class with the correct
+    A function to generate the SED elements needed for using the
+    Tensor Flow class: TF_poly_PSF.
+
+    Parameters
+    ----------
+    SED:
+    sim_psf_toolkit:
+        An instance of the SimPSFToolkit class with the correct
     initialization values.
+    n_bins: int
+        Number of wavelength bins
     """
 
     feasible_wv, SED_norm = sim_psf_toolkit.calc_SED_wave_values(SED, n_bins)
@@ -42,20 +52,68 @@ def generate_SED_elems(SED, sim_psf_toolkit, n_bins=20):
     return feasible_N, feasible_wv, SED_norm
 
 
+def generate_SED_elems_in_tensorflow(
+    SED, sim_psf_toolkit, n_bins=20, tf_dtype=tf.float64
+):
+    """Generate SED Elements in Tensor Flow Units.
+
+    A function to generate the SED elements needed for using the
+    Tensor Flow class: TF_poly_PSF.
+
+    Parameters
+    ----------
+    SED:
+    sim_psf_toolkit:
+        An instance of the SimPSFToolkit class with the correct
+    initialization values.
+    n_bins: int
+        Number of wavelength bins
+    tf_dtype: tf.
+        Tensor Flow data type
+    """
+
+    feasible_wv, SED_norm = sim_psf_toolkit.calc_SED_wave_values(SED, n_bins)
+    feasible_N = np.array([sim_psf_toolkit.feasible_N(_wv) for _wv in feasible_wv])
+
+    return convert_to_tf([feasible_N, feasible_wv, SED_norm], tf_dtype)
+
+
+def convert_to_tf(data, tf_dtype):
+    return [tf.convert_to_tensor(x, dtype=tf_dtype) for x in data]
+
+
 def generate_packed_elems(SED, sim_psf_toolkit, n_bins=20):
-    r"""Generate the packed values for using the TF_poly_PSF."""
-    feasible_N, feasible_wv, SED_norm = generate_SED_elems(SED, sim_psf_toolkit, n_bins=n_bins)
+    """Generate Packed Elements.
+    This name is too generic. may make obsolete
 
-    tf_feasible_N = tf.convert_to_tensor(feasible_N, dtype=tf.float64)
-    tf_feasible_wv = tf.convert_to_tensor(feasible_wv, dtype=tf.float64)
-    tf_SED_norm = tf.convert_to_tensor(SED_norm, dtype=tf.float64)
+    A function to store the packed values for using the TF_poly_PSF.
 
-    # returnes the packed tensors
-    return [tf_feasible_N, tf_feasible_wv, tf_SED_norm]
+    Parameters
+    ----------
+    SED:
+    sim_psf_toolkit:
+    n_bins: int
+        Number of wavelength bins
+
+    Returns
+    -------
+    list
+        List of tensors
+    """
+    feasible_N, feasible_wv, SED_norm = generate_SED_elems(
+        SED, sim_psf_toolkit, n_bins=n_bins
+    )
+
+    feasible_N = tf.convert_to_tensor(feasible_N, dtype=tf.float64)
+    feasible_wv = tf.convert_to_tensor(feasible_wv, dtype=tf.float64)
+    SED_norm = tf.convert_to_tensor(SED_norm, dtype=tf.float64)
+
+    # returns the packed tensors
+    return [feasible_N, feasible_wv, SED_norm]
 
 
 def calc_poly_position_mat(pos, x_lims, y_lims, d_max):
-    r""" Calculate a matrix with position polynomials.
+    r"""Calculate a matrix with position polynomials.
 
     Scale positions to the square:
     [self.x_lims[0], self.x_lims[1]] x [self.y_lims[0], self.y_lims[1]]
@@ -72,7 +130,7 @@ def calc_poly_position_mat(pos, x_lims, y_lims, d_max):
     for d in range(d_max + 1):
         row_idx = d * (d + 1) // 2
         for p in range(d + 1):
-            poly_list.append(scaled_pos_x**(d - p) * scaled_pos_y**p)
+            poly_list.append(scaled_pos_x ** (d - p) * scaled_pos_y**p)
 
     return tf.convert_to_tensor(poly_list, dtype=tf.float32)
 
@@ -165,14 +223,16 @@ def zernike_generator(n_zernikes, wfe_dim):
 
 
 def add_noise(image, desired_SNR):
-    """ Add noise to an image to obtain a desired SNR. """
-    sigma_noise = np.sqrt((np.sum(image**2)) / (desired_SNR * image.shape[0] * image.shape[1]))
+    """Add noise to an image to obtain a desired SNR."""
+    sigma_noise = np.sqrt(
+        (np.sum(image**2)) / (desired_SNR * image.shape[0] * image.shape[1])
+    )
     noisy_image = image + np.random.standard_normal(image.shape) * sigma_noise
     return noisy_image
 
 
 class NoiseEstimator(object):
-    """ Noise estimator.
+    """Noise estimator.
 
     Parameters
     ----------
@@ -203,7 +263,7 @@ class NoiseEstimator(object):
 
         for _x in range(self.img_dim[0]):
             for _y in range(self.img_dim[1]):
-                if np.sqrt((_x - mid_x)**2 + (_y - mid_y)**2) <= self.win_rad:
+                if np.sqrt((_x - mid_x) ** 2 + (_y - mid_y) ** 2) <= self.win_rad:
                     self.window[_x, _y] = False
 
     @staticmethod
@@ -221,8 +281,8 @@ class NoiseEstimator(object):
 
 
 class ZernikeInterpolation(object):
-    """ Interpolate zernikes
-    
+    """Interpolate zernikes
+
     This class helps to interpolate zernikes using only the closest K elements
     in a given dataset using a RBF interpolation.
 
@@ -248,10 +308,9 @@ class ZernikeInterpolation(object):
         self.order = order
 
     def interpolate_zk(self, single_pos):
-        """ Interpolate a single position
-        """
+        """Interpolate a single position"""
         # Compute distance
-        dist = tf.math.reduce_euclidean_norm(self.tf_pos - single_pos, axis=1) * -1.
+        dist = tf.math.reduce_euclidean_norm(self.tf_pos - single_pos, axis=1) * -1.0
         # Get top K elements
         result = tf.math.top_k(dist, k=self.k)
         # Gather useful elements from the array
@@ -275,7 +334,7 @@ class ZernikeInterpolation(object):
             train_values=tf.expand_dims(rec_zks, axis=0),
             query_points=tf.expand_dims(single_pos[tf.newaxis, :], axis=0),
             order=self.order,
-            regularization_weight=0.0
+            regularization_weight=0.0,
         )
         # Remove extra dimension required by tfa's interpolate_spline
         interp_zk = tf.squeeze(interp_zk, axis=0)
@@ -283,21 +342,20 @@ class ZernikeInterpolation(object):
         return interp_zk
 
     def interpolate_zks(self, interp_positions):
-        """ Vectorize to interpolate to each position
-        """
+        """Vectorize to interpolate to each position"""
         interp_zks = tf.map_fn(
             self.interpolate_zk,
             interp_positions,
             parallel_iterations=10,
             fn_output_signature=tf.float32,
-            swap_memory=True
+            swap_memory=True,
         )
         return tf.squeeze(interp_zks, axis=1)
 
 
 class IndependentZernikeInterpolation(object):
-    """ Interpolate each Zernike polynomial independently 
-    
+    """Interpolate each Zernike polynomial independently
+
     The interpolation is done independently for each Zernike polynomial.
 
     Parameters
@@ -320,22 +378,21 @@ class IndependentZernikeInterpolation(object):
         self.target_pos = None
 
     def interp_one_zk(self, zk_prior):
-        """ Interpolate each Zerkine polynomial independently
-        """
+        """Interpolate each Zerkine polynomial independently"""
         interp_zk = tfa.image.interpolate_spline(
             train_points=tf.expand_dims(self.tf_pos, axis=0),
             train_values=tf.expand_dims(zk_prior[:, tf.newaxis], axis=0),
             query_points=tf.expand_dims(self.target_pos, axis=0),
             order=self.order,
-            regularization_weight=0.0
+            regularization_weight=0.0,
         )
 
         # Remove extra dimension required by tfa's interpolate_spline
         return tf.squeeze(interp_zk, axis=0)
 
     def interpolate_zks(self, target_pos):
-        """ Vectorize to interpolate to each Zernike!
-        
+        """Vectorize to interpolate to each Zernike!
+
         Each zernike is computed indepently from the others.
         """
         self.target_pos = target_pos
@@ -345,7 +402,7 @@ class IndependentZernikeInterpolation(object):
             tf.transpose(self.tf_zks, perm=[1, 0]),
             parallel_iterations=10,
             fn_output_signature=tf.float32,
-            swap_memory=True
+            swap_memory=True,
         )
 
         # Remove null dimension and transpose back to have batch at input
@@ -356,7 +413,7 @@ def load_multi_cycle_params_click(args):
     """
     Load multiple cycle training parameters.
 
-    For backwards compatibility, the training parameters are received as a string, 
+    For backwards compatibility, the training parameters are received as a string,
     separated and stored in the args dictionary.
 
     Parameters
@@ -369,51 +426,59 @@ def load_multi_cycle_params_click(args):
     args: dictionary
         The input dictionary with all multi-cycle training parameters correctly loaded.
     """
-    if args['l_rate_param'] is None:
-        args['l_rate_param'] = list(map(float, args['l_rate_param_multi_cycle'].split(' ')))
-    if len(args['l_rate_param']) == 1:
-        args['l_rate_param'] = args['l_rate_param'] * args['total_cycles']
-    elif len(args['l_rate_param']) != args['total_cycles']:
+    if args["l_rate_param"] is None:
+        args["l_rate_param"] = list(
+            map(float, args["l_rate_param_multi_cycle"].split(" "))
+        )
+    if len(args["l_rate_param"]) == 1:
+        args["l_rate_param"] = args["l_rate_param"] * args["total_cycles"]
+    elif len(args["l_rate_param"]) != args["total_cycles"]:
         print(
-            'Invalid argument: --l_rate_param. Expected 1 or {} values but {} were given.'.format(
-                args['total_cycles'], len(args['l_rate_param'])
+            "Invalid argument: --l_rate_param. Expected 1 or {} values but {} were given.".format(
+                args["total_cycles"], len(args["l_rate_param"])
             )
         )
         sys.exit()
 
-    if args['l_rate_non_param'] is None:
-        args['l_rate_non_param'] = list(map(float, args['l_rate_non_param_multi_cycle'].split(' ')))
-    if len(args['l_rate_non_param']) == 1:
-        args['l_rate_non_param'] = args['l_rate_non_param'] * args['total_cycles']
-    elif len(args['l_rate_non_param']) != args['total_cycles']:
-        print(
-            'Invalid argument: --l_rate_non_param. Expected 1 or {} values but {} were given.'
-            .format(args['total_cycles'], len(args['l_rate_non_param']))
+    if args["l_rate_non_param"] is None:
+        args["l_rate_non_param"] = list(
+            map(float, args["l_rate_non_param_multi_cycle"].split(" "))
         )
-        sys.exit()
-
-    if args['n_epochs_param'] is None:
-        args['n_epochs_param'] = list(map(int, args['n_epochs_param_multi_cycle'].split(' ')))
-    if len(args['n_epochs_param']) == 1:
-        args['n_epochs_param'] = args['n_epochs_param'] * args['total_cycles']
-    elif len(args['n_epochs_param']) != args['total_cycles']:
+    if len(args["l_rate_non_param"]) == 1:
+        args["l_rate_non_param"] = args["l_rate_non_param"] * args["total_cycles"]
+    elif len(args["l_rate_non_param"]) != args["total_cycles"]:
         print(
-            'Invalid argument: --n_epochs_param. Expected 1 or {} values but {} were given.'.format(
-                args['total_cycles'], len(args['n_epochs_param'])
+            "Invalid argument: --l_rate_non_param. Expected 1 or {} values but {} were given.".format(
+                args["total_cycles"], len(args["l_rate_non_param"])
             )
         )
         sys.exit()
 
-    if args['n_epochs_non_param'] is None:
-        args['n_epochs_non_param'] = list(
-            map(int, args['n_epochs_non_param_multi_cycle'].split(' '))
+    if args["n_epochs_param"] is None:
+        args["n_epochs_param"] = list(
+            map(int, args["n_epochs_param_multi_cycle"].split(" "))
         )
-    if len(args['n_epochs_non_param']) == 1:
-        args['n_epochs_non_param'] = args['n_epochs_non_param'] * args['total_cycles']
-    elif len(args['n_epochs_non_param']) != args['total_cycles']:
+    if len(args["n_epochs_param"]) == 1:
+        args["n_epochs_param"] = args["n_epochs_param"] * args["total_cycles"]
+    elif len(args["n_epochs_param"]) != args["total_cycles"]:
         print(
-            'Invalid argument: --n_epochs_non_param. Expected 1 or {} values but {} were given.'
-            .format(args['total_cycles'], len(args['n_epochs_non_param']))
+            "Invalid argument: --n_epochs_param. Expected 1 or {} values but {} were given.".format(
+                args["total_cycles"], len(args["n_epochs_param"])
+            )
+        )
+        sys.exit()
+
+    if args["n_epochs_non_param"] is None:
+        args["n_epochs_non_param"] = list(
+            map(int, args["n_epochs_non_param_multi_cycle"].split(" "))
+        )
+    if len(args["n_epochs_non_param"]) == 1:
+        args["n_epochs_non_param"] = args["n_epochs_non_param"] * args["total_cycles"]
+    elif len(args["n_epochs_non_param"]) != args["total_cycles"]:
+        print(
+            "Invalid argument: --n_epochs_non_param. Expected 1 or {} values but {} were given.".format(
+                args["total_cycles"], len(args["n_epochs_non_param"])
+            )
         )
         sys.exit()
 
@@ -421,7 +486,7 @@ def load_multi_cycle_params_click(args):
 
 
 def PI_zernikes(tf_z1, tf_z2, norm_factor=None):
-    """ Compute internal product between zernikes and OPDs
+    """Compute internal product between zernikes and OPDs
 
     Defined such that Zernikes are orthonormal to each other
 

@@ -8,7 +8,7 @@ This repository includes:
 - A numpy-based PSF simulator [here](https://github.com/tobias-liaudat/wf-psf/blob/main/wf_psf/SimPSFToolkit.py).
 - All the scripts, jobs and notebooks required to reproduce the results in [arXiv:2203.04908](http://arxiv.org/abs/2203.04908) and [arXiv:2111.12541](https://arxiv.org/abs/2111.12541).
 
-For more information on how to use the WaveDiff model through configurable scripts see the `long-runs` directory's [README](https://github.com/tobias-liaudat/wf-psf/blob/main/long-runs/README.md). 
+~~For more information on how to use the WaveDiff model through configurable scripts see the `long-runs` directory's [README](https://github.com/tobias-liaudat/wf-psf/blob/main/long-runs/README.md).~~ (Scripts will become obsolute with next release.) 
 
 ## Proposed framework
 
@@ -21,21 +21,10 @@ A schematic of the proposed framework can be seen below. The PSF model is estima
 <img height=800 src="assets/PSF_reconstruction_example.png" > -->
 
 
-## Install
-
-`wf-psf` is pure python and can be easily installed with `pip`. After cloning the repository, run the following commands:
-
-```bash
-$ cd wf-psf
-$ pip install .
-```
-
-The package can then be imported in Python as `import wf_psf as wf`. We recommend using the release `1.2.0` for stability as the current main branch is under development.
-
 ## Requirements
 - [numpy](https://github.com/numpy/numpy) [>=1.19.2]
 - [scipy](https://github.com/scipy/scipy) [>=1.5.2]
-- [TensorFlow](https://www.tensorflow.org/) [==2.4.1]
+- [TensorFlow](https://www.tensorflow.org/) [>=2.4.1, <2.13.0]
 - [TensorFlow Addons](https://github.com/tensorflow/addons) [==0.12.1]
 - [Astropy](https://github.com/astropy/astropy) [==4.2]
 - [zernike](https://github.com/jacopoantonello/zernike) [==0.0.31]
@@ -46,7 +35,27 @@ The package can then be imported in Python as `import wf_psf as wf`. We recommen
 Optional packages:
 - [matplotlib](https://github.com/matplotlib/matplotlib) [=3.3.2]
 - [seaborn](https://github.com/mwaskom/seaborn) [>=0.11]
+- [PyYaml](https://github.com/yaml/pyyaml) [>=6.0]
+- [scikit-image](https://github.com/scikit-image/scikit-image) [>=0.21.0]
 
+## Install
+
+`wf-psf` is pure python and can be easily installed with `pip`. After cloning the repository, run the following commands:
+
+```bash
+$ cd wf-psf
+$ git checkout dummy_main
+$ pip install .
+$ pip install -r requirements.txt
+```
+
+The package can then be imported in Python as `import wf_psf as wf`. ~~We recommend using the release `1.2.0` for stability as the current main branch is under development.~~
+
+## Running `WaveDiff`
+
+To run `WaveDiff`, we prepared a step-by-step [instruction guide](https://github.com/CosmoStat/wf-psf/wiki/Getting-started-tutorial).
+
+[Read the tutorial to get started!](https://github.com/CosmoStat/wf-psf/wiki/Getting-started-tutorial)
 
 ## Reproducible research
 
