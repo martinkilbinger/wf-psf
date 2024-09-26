@@ -3,8 +3,8 @@ channels:
   - conda-forge
 dependencies:
   - keras=2.9.0=pyhd8ed1ab_0
-  - scipy=1.11.4=py310h2b794db_0
-  - tensorflow=2.9.1=cpu_py310h6ecea76_0
+  - scipy=1.11.4
+  - tensorflow=2.9.1
   - pip=23.3.1
   - pip:
       - astropy>=6.0.0
