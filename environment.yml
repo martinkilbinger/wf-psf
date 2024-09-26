@@ -10,6 +10,7 @@ dependencies:
       - astropy>=6.0.0
       - galsim>=2.5.1
       - matplotlib>=3.8.2
+      - jupyterlab
       - opencv-python>=4.8.1.78
       - pandas>=2.1.4
       - pillow>=10.1.0
